@@ -35,6 +35,7 @@ getting go, vscode, vscode go extensions.
 
 
 ## A Simple Start
+
 <details>
 <summary>
 Basic Go program
@@ -894,16 +895,97 @@ a slice is a struct that manages the array, but it holds a pointer to the data, 
 
 <details>
 <summary>
-
+Go maps!
 </summary>
+
+### What's a Map?
+
+maps are like dictionaries, they are statically types, so all keys must be of the same type, and the values must also all be from the same type(not the same type as the keys).
+
+so we will start working with a new project, "maps". we can declare a map in several ways. one way is like this `<name> := map[<key type>]<value type>` and then start initializing the keys and the pairs. we need a trailing comma at the last pair
+
+we will use mapping from colors to hex codes
+```go
+	colors := map[string]string{
+		"red":   "#ff0000",
+		"green": "#00ff00",
+		"blue":  "#0000ff", //trailing comma!
+	}
+	fmt.Println(colors)
+```
+
+### Manipulating Maps
+
+there are other ways to initialize maps, with the empty variable declaration or a `make(map[<key type>]<value type>)` function.\
+we use the square brackets to manipulate the map, but we can't access records with the dot notation. we delete records with the `delete` function, which takes the map and the key.
+
+```go
+var colours map[string]int //zero values
+otherColors := make(map[string]string) //also creates ma
+otherColors["orange"]="badger"
+delete (otherColors,"orange")
+```
+
+### Iterating Over Maps
+
+lets make a function that takes a map, iterates over it and prints it. it's very similar to iterating over a slice, but we get the key and value rather than the index and value.
+
+because map is a reference type, we don't need to send a pointer
+
+```go
+func printMap(c map[string]string){
+	for color,hex := range c{
+		fmt.Println("color",color,"hex code",hex)
+	}
+}
+```
+
+### Differences Between Maps and Structs
+
+> Struct
+> - Values can be of diffrent types
+> - Keys don't support indexing
+> - Used to represent a "thing" with a lot of diffrent properties
+> - You need to know all the different fields at compile time
+> - Value type
+> Map:
+> - All keys must be the same type
+> - All values must be the same type
+> - Keys are indexed, we can iterate over them
+> - Used to represent a collection of related properties
+> - Don't need to know all the keys at compile time
+> - Reference type
+
+if we change a map inside a function, this will change the values (reference types)
+
 </details>
 
 ## Interfaces
 
-<details>
+<!-- <details> -->
 <summary>
 
 </summary>
+
+### Purpose of Interfaces
+### Problems Without Interfaces
+### Interfaces in Practice
+### Rules of Interfaces
+### Extra Interface Notes
+### The HTTP Package
+### Reading the Docs
+### More Interface Syntax
+### Interface Review
+### The Reader Interface
+### More on the Reader Interface
+### Working with the Read Function
+### The Writer Interface
+### The io.Copy Function
+### The Implementation of io.Copy
+### A Custom Writer
+### Assignment 2: Interfaces
+### Assignment 3: Hard Mode Interfaces
+
 </details>
 
 ## Channels and Go Routines
@@ -924,6 +1006,11 @@ a slice is a struct that manages the array, but it holds a pointer to the data, 
    
 ## Other TakeAways
 
+<details>
+<summary>
+Stuff worth remembering
+</summary>
+
 
 
 ### Go Types
@@ -933,8 +1020,8 @@ a slice is a struct that manages the array, but it holds a pointer to the data, 
 - float: `float32`, `float64`. zero-value **0**
 - complex: `complex64`,`complex128` zero-value **0+0i**
 - array
-- slice
-- map
+- slice: `[]<type>`
+- map: `[<key type>]<value type>`
 
 **value types**: int, float, string, bool, structs.\
 **reference types**: slices, maps,channels,pointers, functions.  
@@ -999,3 +1086,5 @@ Type | Symbol | Example | Notes
 decimal integers | %d| 0,5 | N/A
 value | %v | any value
 struct with field names | %+v | structs | prints the key:value pairs
+
+</details>
