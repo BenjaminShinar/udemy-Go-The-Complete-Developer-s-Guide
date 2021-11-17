@@ -690,23 +690,203 @@ we also used the testing function, which has a type with a star, this will also 
 
 <details>
 <summary>
-
+Creating Structs, initializing them. basic pointer operations.
 </summary>
 
-#### Structs in Go
-#### Defining Structs
-#### Declaring Structs
-#### Updating Struct Values
-#### Embedding Structs
-#### Structs with Receiver Functions
-#### Pass By Value
-#### Structs with Pointers
-#### Pointer Operations
-#### Pointer Shortcut
-#### Gotchas With Pointers
-#### 7: Test Your Knowledge: Pointers
-#### Reference vs Value Types
-#### 8: Test Your Knowledge: Value vs Reference Types
+### Structs in Go
+
+if we look back at the cards project, we used strings to denote the cards "Ace of Spades", how can we say that a card is from a specific suit or a specific value? we would have to do string operations. structs could help us with this, by using a struct to define a single card.
+
+> struct :"data structure. collection of properties that are related together"
+
+we will use a project "structs"
+
+### Defining Structs
+
+in the main.go file, we put the usual boiler plate code. our struct will define a person, with a first and last name (strings). we use the syntax of `type <name> struct`. we don't separate the fields, each in a new line
+
+```go
+package main
+
+type person struct {
+	firstName string
+	lastName string
+}
+
+func main(){
+	
+}
+
+```
+
+### Declaring Structs
+
+we have a type definition, now we need to instantiate this type. we can use positional arguments or name arguments with key:value pairs.
+
+if we simply print a struct, we see the values inside curly braces, but not the field names
+
+```go
+	alex:= person{"Alex","Anderson"} //positional argument
+	jack:= person{firstName:"jack",lastName: "jackson"} //names arguments
+
+	fmt.Println(alex)
+```
+
+### Updating Struct Values
+
+a final way to declare a struct is to declare a variable of that type, which will result in a struct with zero values in each field. so the person has empty strings as the values for first and last names. if we want to see things better, we can use the `fmt.Printf` syntax for a different view, if we pass the `%+v` as a format string, we can see the key:values pairs.
+
+as most languages, we can update the values with the dot notation.
+
+```go
+	alex:= person{"Alex","Anderson"} //positional argument
+	jack:= person{firstName:"jack",lastName: "jackson"} //names arguments
+	var jon person // zero value initialization
+
+	fmt.Println(alex,jack, jon)
+	fmt.Printf("%+v\n",alex)
+	fmt.Printf("%s %+s\n",alex.firstName,alex.firstName)
+	jon.firstName = "jon"
+	fmt.Println(jon)
+```
+
+### Embedding Structs
+
+we can embed nest types inside other types. lets add a nested type to the person type. we also define a person with this information.
+
+**in a multiline struct definition, we need a comma a the end of every line!**
+```go
+
+type contactInfo struct{
+	email string
+	zipCode int
+}
+
+type person struct {
+	firstName string
+	lastName  string
+	contact contactInfo
+}
+
+func main(){
+	jim := person{
+		firstName: "jim",
+		lastName:  "party",
+		contact: contactInfo{
+			email:   "party@jim.now",
+			zipCode: 94000,
+		},
+	}
+
+	fmt.Println(jim)
+}
+```
+
+### Structs with Receiver Functions
+
+when we create an embedded (nested) struct, we can omit the inner type member name, as use the typename as a field name as well. like javaScript es6 enhanced object literals. this will be handy later on.
+
+```go
+type contactInfo struct{
+	email string
+	zipCode int
+}
+
+type person struct {
+	firstName string
+	lastName  string
+	contactInfo //no member name
+}
+```
+
+like with other types, we can create receiver functions for types, like the print function, and one function that changes the first name.
+
+```go
+func (p person) print(){
+	fmt.Printf("%+v\n",p)
+}
+func (p person) updateName(newFirstName string){
+	p.firstName =newFirstName
+}
+```
+however, when we run this function, the name doesn't change! what happened?  time to learn about pointers...
+
+### Pass By Value
+
+quick refresher of RAM and memory.
+
+go is pass-by-value (copy), not by reference, just like C. so if we want to modify a value in a function, we would need to use pointers.
+
+### Structs with Pointers
+
+first we update our code. then we'll talk about how
+
+```go
+func (pointerToPerson *person) updateName(newFirstName string){
+	(*pointerToPerson).firstName =newFirstName
+}
+
+jimPointer := &jim
+jimPointer.updateName("jimmy")
+jim.print()
+```
+
+### Pointer Operations
+
+we have some new symbols,`&` and `*`. `&` is an operator to get a address of the variable. `*` is a pointer deference operator. get the value at that address. unless it's the type of a pointer.
+
+so in the new updateName function, we changed the receiver type to be a pointer to a person.
+
+> "turn address into value with `*address`"\
+> "turn value into address with `&value`"
+
+we will see more edge cases with pointers.
+
+### Pointer Shortcut
+
+instead of getting a Pointer and using it, we can use receiver function with a pointer type directly on a type. like taking the address and calling the correct function. this only works one way. we can't use value functions on pointers with this syntax.
+
+```go
+func (pointerToPerson *person) updateName(newFirstName string){
+	(*pointerToPerson).firstName =newFirstName
+}
+
+//jimPointer := &jim
+//jimPointer.updateName("jimmy")
+jim.updateName("jimmy") //also work
+jim.print()
+```
+
+### Gotchas With Pointers
+
+
+here is a possible gotcha. we create a slice and send it to a function by value, this should be a copy, so the value shouldn't change. but it does!
+
+```go
+package main
+
+import "fmt"
+
+func main() {
+	mySlice := []string{"hi","There","How","Are","You?"}
+	updateSlice(mySlice)
+	fmt.Println(mySlice)
+}
+
+func updateSlice(s []string){
+	s[0]= "bye"
+}
+```
+
+this is because of reference types and value types
+
+### Reference vs Value Types
+
+why did the value inside the slice change?
+
+first of all, differences between slices and arrays: arrays are primitive data structure,they can't be resized, and we rarely use them. slices are used more often, they can grow and shrink. internally, they are built above arrays. 
+
+a slice is a struct that manages the array, but it holds a pointer to the data, not the data itself. some types are value types (primitives, string, structs), and other are reference types (slices, maps, channels, pointers, functions). when we use reference types, we don't need to worry about taking pointers and stuff.
 
 </details>
 
@@ -747,15 +927,19 @@ we also used the testing function, which has a type with a star, this will also 
 
 
 ### Go Types
-- bool:  true or false.
-- string: text
-- int: `int8`, `uint8` (byte), `int16`, `uint16`, `int32` (rune), `uint32`, `int64`, `uint64`, `int`, `uint`, `uintptr`.
-- float: `float32`, `float64`.
-- complex: `complex64`,`complex128`
+- bool:  true or false. zero-value **false**
+- string: text. zero=value **"" (empty string)**
+- int: `int8`, `uint8` (byte), `int16`, `uint16`, `int32` (rune), `uint32`, `int64`, `uint64`, `int`, `uint`, `uintptr`. zero-value **0**
+- float: `float32`, `float64`. zero-value **0**
+- complex: `complex64`,`complex128` zero-value **0+0i**
 - array
 - slice
 - map
-  
+
+**value types**: int, float, string, bool, structs.\
+**reference types**: slices, maps,channels,pointers, functions.  
+
+
 ### Go CLI
 
 - *go build*
@@ -810,7 +994,8 @@ how the string format works:
 > - p - pointer address
 > - % - a double %% prints a single %
 
-type | symbol | example | notes
+Type | Symbol | Example | Notes
 -----|---------|---|---
-value | %v| any value | any value
-type |
+decimal integers | %d| 0,5 | N/A
+value | %v | any value
+struct with field names | %+v | structs | prints the key:value pairs
