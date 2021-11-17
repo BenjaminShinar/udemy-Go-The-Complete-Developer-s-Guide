@@ -32,9 +32,9 @@ func main() {
 	// h3 := newDeckFromFile("acd.txt")
 	// h3.print()
 
-	// cards5 := newDeck()
-	// cards5.shuffle()
-	// cards5.print()
+	cards5 := newDeck()
+	cards5.shuffle()
+	cards5.print()
 
 }
 

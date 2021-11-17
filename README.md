@@ -1,6 +1,6 @@
 <!--
 ignore these words in spell check for this file
-// cSpell:ignore Intn
+// cSpell:ignore Intn Errorf
 -->
 
 # udemy-Go-The-Complete-Developers-Guide
@@ -114,6 +114,11 @@ every file in this course will look like this:
 </details>
 
 ## Deeper Into Go
+
+<details>
+<summary>
+Creating a small project to get a better view of how Go does stuff.
+</summary>
 
 ### Project Overview
 we start with a project: "cards", this project will be about playing card games, we will create the following functions:
@@ -517,15 +522,169 @@ func (d deck) shuffle(){
 ```
 
 we run this several times, and we always get the same result! we didn't set up a random seed value!
+
 ### Random Number Generation
+
+go uses the same seed by default. this is done with type Rand. we use `func New(src Source) *Rand`, which uses a Source type and returns a pointer type. then we can use it.
+
+
+**deck.go**
+```go
+func (d deck) shuffle(){
+
+    source := rand.NewSource(5)
+    r := rand.New(source)
+
+    for i := range d {
+        newPosition :=r.Intn(len(d)-1)
+        d[i],d[newPosition] = d[newPosition],d[i]
+    }
+}
+```
+to get a seed we will use the current time from the time package. tha main thing we learn is how to use the documentation.
+
+```go
+func (d deck) shuffle(){
+
+    source := rand.NewSource(time.Now().UnixNano())
+    r := rand.New(source)
+
+    for i := range d {
+        newPosition :=r.Intn(len(d)-1)
+        d[i],d[newPosition] = d[newPosition],d[i]
+    }
+}
+```
+
 ### Testing With Go
+
+let's think about testing.
+
+> "Go testing is not RSpec, mocha, jasmine, selenium, etc!"
+
+we create a file ending with "_test.go", vscode will recognize this file and give us some quick actions. we run tests with `go test` from the command line.
+
 ### Writing Useful Tests
+
+deciding what to test: we need to figure out what we care about, what we can test, etc...
+
+we write our tests in functions, each function should test some functionality. we write test function with a capital letter, "TestNewDeck", then vscode shows us the option to run them directly, they all take a argument of type _\*testing.T_ called *t*.
+
+`func TestSomethingName (t *testing.T)`, we use this parameter to create error messages and fail the test with `t.Error`, `t.Errorf`  and other functions.
+
+
+> our first test:\
+> when we create a new deck, before shuffling 
+>       - it should be of a specific size
+>       - the first card is "Ace of Spades"
+>       - the last card is "Four of Clubs"
+
+
+so our function starts like this
+
+**deck_test.go**
+```go
+package main
+
+import "testing"
+
+func TestNewDeck(t *testing.T) {
+	d := newDeck()
+	l := len(d)
+	if l != 16 {
+		t.Errorf("Expected length 16, got %v", l)
+	}
+}
+
+```
+
 ### Asserting Elements in a Slice
+
+expanding the test, in a new deck, we know what the order the cards should be, so we can test this. we use the regular indexing notations.
+
+**deck_test.go**
+```go
+func TestNewDeck(t *testing.T) {
+	d := newDeck()
+	l := len(d)
+	exp := 16
+	if l != exp {
+		t.Errorf("Expected length %d, got %v", exp, l)
+	}
+	// first := d[0]
+	// last := d[l-1]
+	expFirst, expLast := "Ace of Spades", "Four of Diamonds"
+	first,last := d[0],d[l-1]
+	if first != expFirst {
+		t.Errorf("expected first card to be %v, was %v",expFirst, first)
+	}
+	if last != expLast {
+		t.Errorf("expected last card to be %v, was %v",expLast, last)
+	}
+}
+```
+
+
 ### Testing File IO
+
+the final test is to save and read deck from disk. if we create a file and crush, we won't have an opportunity to clean it up! we have to take care of this.
+
+> 1. delete any file in the current directory with the name "_deckTesting"
+> 2. create a deck
+> 3. save to file "_deckTesting"
+> 4. load from file
+> 5. assert deck length
+> 6. delete any file in the current directory with the name "_deckTesting"
+
+
+so how do we delete a file? the os package can help! `func Remove(name string) error` we delete before and after running the test
+
+
+
+**deck_test.go**
+```go
+func TestSaveToDeckAndNewDeckFromFile(t *testing.T) {
+    filename := "_deckTesting"
+    os.Remove(filename)
+	d := newDeck()
+	
+    d.saveToFile(filename)
+	loadedDeck := newDeckFromFile(filename)
+
+	l1 := len(d)
+	l2 := len(loadedDeck)
+	if l1 != l2 {
+		t.Errorf("Expected length %d, got %v", l1,l2)
+	}
+    os.Remove(filename)
+}
+```
+
 ### Project Review
-### 1: Even and Odd
+
+we used many packages, and we imported them all. we had a new type *deck*, built on top of slice of strings (*[]string*). we used receiver function and slices, which are more advanced then regular arrays.
+
+the *deal* function wasn't a receiver function, it was to avoid ambiguity, the name might imply that we modify the original value. it's up to discussion. later on.
+
+we also used the testing function, which has a type with a star, this will also be explained later.
 
 
+### Assignment 1: Even and Odd
+
+
+> In this assignment you'll get some practice with slices and for loops.
+>
+> Here are the directions:
+>
+> - Create a new project folder to house this new project and create a 'main.go' file inside of it.
+> - In the main.go file, define a function called 'main'.  Remember that the 'main' function will be called automatically.
+> - In the main function, create a slice of integers from 0 through 10.
+> - Iterate through the slice with a for loop.  For each element, check to see if the number is even or odd.
+> - If the value is even, print out "even".  If it is odd, print out "odd".
+> - Run your code from the terminal by changing into your project directory then running 'go run main.go'
+
+
+</details>
 
 ## Organizing Data With Structs
 
@@ -533,6 +692,22 @@ we run this several times, and we always get the same result! we didn't set up a
 <summary>
 
 </summary>
+
+#### Structs in Go
+#### Defining Structs
+#### Declaring Structs
+#### Updating Struct Values
+#### Embedding Structs
+#### Structs with Receiver Functions
+#### Pass By Value
+#### Structs with Pointers
+#### Pointer Operations
+#### Pointer Shortcut
+#### Gotchas With Pointers
+#### 7: Test Your Knowledge: Pointers
+#### Reference vs Value Types
+#### 8: Test Your Knowledge: Value vs Reference Types
+
 </details>
 
 ## Maps
@@ -596,11 +771,46 @@ Package name | Import statement | Usage | Noticeable functions
 -------|--------------|-----------|----
 fmt, format | import "fmt"' | basic IO to console with formatting |Println,
 math | ||
-rand | import "math/rand" | randomness | IntN
+rand | import "math/rand" | randomness | IntN, newSource, New
 debug |||
 encoding |||
 crypto |||
 io |||
 ioutil | import "io/util" | utility functions for IO | WriteFile,ReadFile
 strings |import "strings"|basic string operations | Join, Split
-os | import "os" |platform independent system calls | exit
+os | import "os" |platform independent system calls | exit, Remove
+time | import "time" |functionality for measuring and displaying time | Now, 
+testing | import "testing" | tests package! | t.Error,  t.Errorf
+
+### Format String
+
+how the string format works:
+[formatting](https://zetcode.com/golang/string-format/)
+
+> - d - decimal integer
+> - o - octal integer
+> - O - octal integer with 0o prefix
+> - b - binary integer
+> - x - hexadecimal integer lowercase
+> - X - hexadecimal integer uppercase
+> - f - decimal floating point, lowercase
+> - F - decimal floating point, uppercase
+> - e - scientific notation (mantissa/exponent), lowercase
+> - E - scientific notation (mantissa/exponent), uppercase
+> - g - the shortest representation of %e or %f
+> - G - the shortest representation of %E or %F
+> - c - a character represented by the corresponding Unicode code point
+> - q - a quoted character
+> - U - Unicode escape sequence
+> - t - the word true or false
+> - s - a string
+> - v - default format
+> - #v - Go-syntax representation of the value
+> - T - a Go-syntax representation of the type of the value
+> - p - pointer address
+> - % - a double %% prints a single %
+
+type | symbol | example | notes
+-----|---------|---|---
+value | %v| any value | any value
+type |
