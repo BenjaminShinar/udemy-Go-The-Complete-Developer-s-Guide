@@ -1,6 +1,6 @@
 <!--
 ignore these words in spell check for this file
-// cSpell:ignore Intn Errorf
+// cSpell:ignore Intn Errorf Holla PIMPL
 -->
 
 # udemy-Go-The-Complete-Developers-Guide
@@ -24,6 +24,7 @@ udemy course Go: The Complete Developer's Guide (Golang).
 [course diagrams](https://github.com/StephenGrider/GoCasts/tree/master/diagrams)
 
 ## Getting Started
+
 <details>
 <summary>
 getting go, vscode, vscode go extensions.
@@ -943,9 +944,9 @@ func printMap(c map[string]string){
 ### Differences Between Maps and Structs
 
 > Struct
-> - Values can be of diffrent types
+> - Values can be of different types
 > - Keys don't support indexing
-> - Used to represent a "thing" with a lot of diffrent properties
+> - Used to represent a "thing" with a lot of different properties
 > - You need to know all the different fields at compile time
 > - Value type
 > Map:
@@ -962,29 +963,354 @@ if we change a map inside a function, this will change the values (reference typ
 
 ## Interfaces
 
-<!-- <details> -->
+<details>
 <summary>
-
+Using Interfaces for code reuse and other purposes.
 </summary>
 
 ### Purpose of Interfaces
+
+what interfaces do for us as developers.
+
+>"We know that every value has a type, and every function has to specify the type of its arguments.\
+so does that mean...\
+Every function we ever write has to be rewritten to accommodate different types even if the logic is identical?"
+
+for example, the deck shuffle function. do we care that it's called on a deck? does it use any special functions that use the deck, cards? NO! it uses the parts of the []string slice, but even then, it doesn't care about the string, only about the slice. this is one of the problems interfaces are meant to solve.
+
+we'll start with an example, we'll write it naively and then fix it. we have a two chat-bots, one for english and one for spanish. they have many similarities. it wouldn't make sense to write the same code again. some function will have different code, but some are using those functions and will be identical. *getGreeting* will be different, but *printGreeting* will use the return value, but be the same. it would make sense to have one version of that function.
+
+```go
+type englishBot struct
+func (englishBot) getGreeting() string
+func printGreeting(eb englishBot)
+
+type spanishBot struct
+func (spanishBot) getGreeting() string
+func printGreeting(sb spanishBot)
+```
+
 ### Problems Without Interfaces
+
+lets create the program, we'll use a new folder "interfaces". a note to remember is that if we aren't using a parameter, we can omit the name
+
+```go
+type englishBot struct{}
+type spanishBot struct{}
+
+func (eb englishBot) getGreeting() string {
+	return "Hello"
+}
+
+func (spanishBot) getGreeting() string{
+	return "Holla!"
+}
+```
+now we create the printGreeting functions, we get a re-declaration error! no function overloading!
+
+```go
+func printGreeting(eb englishBot){
+	fmt.Println(eb.getGreeting())
+}
+func printGreeting(sb spanishBot){
+		fmt.Println(sb.getGreeting())
+}
+```
+
+how can we fix this problem? is there a way to pass the two different types to the same function?
+
 ### Interfaces in Practice
+
+let's use interfaces. we add a new type, which is interface (not struct) and use it as the type of the function argument. `type <interface name> interface` and then we define requirements in terms of of function signatures.
+
+```go
+type bot interface{
+	getGreeting() string
+}
+
+func printGreeting(b bot){
+	fmt.Println(b.getGreeting())
+}
+```
+
+this works!
+
+interfaces are declared as requirement, a type doesn't need to declare itself to be part of an interface, it either is or it isn't based on satisfying the interface.
+
 ### Rules of Interfaces
+
+here is another interface, with argument and return type. we can have more than one function
+
+```go
+type user struct {
+	name string
+}
+
+type otherBot interface{
+	getGreeting(string,int) (string, error)
+	getBotVersion() float
+	respondToUser(user) string
+}
+```
+
+we have concrete types, which we can create values of, like primitives, slices, structs. we also have interface types, which are abstract ideas of types, we can't a instance of them.
+
 ### Extra Interface Notes
+
+> - "Interfaces are **not** generic types". go doesn't support generic programming.
+> - "Interfaces are implicit". we don't manually link types and interfaces (*duck typing?*)
+> - "Interfaces are a contract to help us manage types".
+> - "Interfaces are tough. Step #1 is understanding how to read them".
+
 ### The HTTP Package
+
+using interfaces the standard library, we will start a folder "http". we'll look at the documentation to understand the types used in function `func Get (url string)(resp *Response, err error)`.
+
+```go
+func main() {
+	resp, err := http.Get("http://google.com")
+	if err != nil {
+		fmt.Println("Error", err)
+		os.Exit(1)
+	}
+	fmt.Println(resp)
+}
+```
+for any other language, this would work, but not in go! where is the html body?
+
 ### Reading the Docs
+
+we sent a request, but we didn't get an html body. we need to learn more. the response is a struct, it has a body field, with the type `io.ReadCloser` which is an interface type, but it doesn't show functions, it shows other interfaces!
+
+```go
+type ReadCloser interface {
+	Reader
+	Closer
+}
+
+type Reader interface {
+	Read (p []byte)(n int, err error)
+}
+
+type Closer interface {
+	Close() error
+}
+```
+
 ### More Interface Syntax
-### Interface Review
+
+if we specify a interface as struct field, it's saying we don't care about the concrete type, just that it fulfills the interface. like the PIMPL idiom.
+
+in go. we can define a interface as a composition of other interfaces.
+
+```go
+type interface A {
+	foo()
+}
+type interface B {
+	bar()
+}
+type interface C {
+	A
+	B
+}
+```
+
 ### The Reader Interface
+
+let's understand the *Reader* interface. we have an imaginary world without interfaces, each function can return a different type, and for each type we need a different function with a different name and definition to handle them.
+
+the Reader interface works as an adapter, we don't care about the type of the body, as long as it provides us the Reader interface. which populates a byte slice.
+
 ### More on the Reader Interface
+
+understanding the reader interface. `Read(p []byte)(int, error)`. the function copies the raw data (unknown type and format) into the slice, and returns the number of bytes read and any errors encountered. because slice is a reference type, then it's possible to modify it inside the function
+
 ### Working with the Read Function
+
+now lets try to read the data from the body. we declare a byte slice, pass it to the read function of the response Body element, and then cast it to a string to print.
+
+```go
+func main() {
+	resp, err := http.Get("http://google.com")
+	if err != nil {
+		fmt.Println("Error", err)
+		os.Exit(1)
+	}
+	bs := make([]byte,99999) // create a slice with this size
+	resp.Body.read(bs)
+	fmt.Println(string(bs)) //byte slice is just like a string
+}
+```
+however, go has built-in utilities to make this easier.
+
 ### The Writer Interface
+
+here's an easier way to write the html to the console.
+
+```go
+func main() {
+	resp, err := http.Get("http://google.com")
+	if err != nil {
+		fmt.Println("Error", err)
+		os.Exit(1)
+	}
+
+	io.Copy(os.stdout, resp.Body)
+}
+```
+
+we used the Reader interface before, but we can also use Writer interface, which is the opposite. but this doesn't modify the data.
+
+```go
+type Writer interface {
+	Write(p []byte) (n int, err error)
+}
+```
+
 ### The io.Copy Function
+
+the Writer interface takes the data and writes it somewhere, the io.Copy function takes a reader and a writer, and uses them both together to copy data from one source to another.
+
+io.Stdout is the of type _*File_, which has a function Write with the correct signature, so it fits the Writer interface.
+
+
 ### The Implementation of io.Copy
+
+with the vscode editor, we can look at function implementations, we simply hold the <kbd>Ctrl</kbd> button and click on a function name, and we can see how it's implemented.
+
+it creates a byte slice (if need), use a loop read and write data. if one of the values has *WriteTo* or *ReadFrom* functions, they are used instead.
+
+```go
+func Copy(dst Writer, src Reader) (written int64, err error) {
+	return copyBuffer(dst, src, nil)
+}
+
+// copyBuffer is the actual implementation of Copy and CopyBuffer.
+// if buf is nil, one is allocated.
+func copyBuffer(dst Writer, src Reader, buf []byte) (written int64, err error) {
+	// If the reader has a WriteTo method, use it to do the copy.
+	// Avoids an allocation and a copy.
+	if wt, ok := src.(WriterTo); ok {
+		return wt.WriteTo(dst)
+	}
+	// Similarly, if the writer has a ReadFrom method, use it to do the copy.
+	if rt, ok := dst.(ReaderFrom); ok {
+		return rt.ReadFrom(src)
+	}
+	if buf == nil {
+		size := 32 * 1024
+		if l, ok := src.(*LimitedReader); ok && int64(size) > l.N {
+			if l.N < 1 {
+				size = 1
+			} else {
+				size = int(l.N)
+			}
+		}
+		buf = make([]byte, size)
+	}
+	for {
+		nr, er := src.Read(buf)
+		if nr > 0 {
+			nw, ew := dst.Write(buf[0:nr])
+			if nw < 0 || nr < nw {
+				nw = 0
+				if ew == nil {
+					ew = errInvalidWrite
+				}
+			}
+			written += int64(nw)
+			if ew != nil {
+				err = ew
+				break
+			}
+			if nr != nw {
+				err = ErrShortWrite
+				break
+			}
+		}
+		if er != nil {
+			if er != EOF {
+				err = er
+			}
+			break
+		}
+	}
+	return written, err
+}
+
+// ReaderFrom is the interface that wraps the ReadFrom method.
+//
+// ReadFrom reads data from r until EOF or error.
+// The return value n is the number of bytes read.
+// Any error except EOF encountered during the read is also returned.
+//
+// The Copy function uses ReaderFrom if available.
+type ReaderFrom interface {
+	ReadFrom(r Reader) (n int64, err error)
+}
+
+// WriterTo is the interface that wraps the WriteTo method.
+//
+// WriteTo writes data to w until there's no more data to write or
+// when an error occurs. The return value n is the number of bytes
+// written. Any error encountered during the write is also returned.
+//
+// The Copy function uses WriterTo if available.
+type WriterTo interface {
+	WriteTo(w Writer) (n int64, err error)
+}
+```
+
+
 ### A Custom Writer
+
+to satisfy the writer interface, our type needs `Write(p []byte) (n int, err error)`
+
+so let's write such a type, as long as we have th correct function format, we can use the struct, even if the code is garbage.
+
+```go
+type logWriter struct {}
+
+func (logWriter) Write(bs []byte) (n int, err error){
+	return 1, nil
+}
+```
+but lets be better
+```go
+func (logWriter) Write(bs []byte) (n int, err error){
+	fmt.Println(string(bs))
+	return len(bs),nil
+}
+```
 ### Assignment 2: Interfaces
+
+> Write a program that create two custom struct types called 'triangle' and 'square.\
+> The 'square' type should be a struct with a field called 'sideLength' of type float64.\
+> The 'triangle' type should a struct with a field called 'height' of type float64, and a field called 'base' of type float64.
+> 
+> Both types should have function called 'getArea' that returns the calculated area of the square or triangle.\
+> Area of triangle: 0.5 * base * height\
+> Area of square: sideLength *sideLength
+> 
+> Add a shape interface that defines a function called 'printArea', this function should calculate the area of a the given shape and print it out to the terminal.\
+> Design the interface so that 'printArea' function can be called with either a triangle or a square.
+
+**note: the instructions are messed up, but it's pretty simple to understand what it wants us to do**
+
 ### Assignment 3: Hard Mode Interfaces
+
+
+> Create a program the reads contents of a text file then prints its content's to the terminal. 
+> 
+> The file to open should be provided as an argument to the program when it's executed at the terminal. for example, `go run main.go myFile.txt` should open up the myFile.txt file.
+> 
+> To read in arguments provided to a program, you can reference the variable *os.Args* which is a slice of type sting. To open a file , check out yhe documentation for the *Open* functions in the *os* package.
+> 
+> What interfaces does the *File* type implement?\
+> If the *File* type implements the *reader* interface you might be able to reuse the *io.Copy* function!
+
+**maybe I should have closed the file...**
 
 </details>
 
@@ -1011,9 +1337,17 @@ if we change a map inside a function, this will change the values (reference typ
 Stuff worth remembering
 </summary>
 
+- go doesn't have function overloading - one name, one function
+- the keyword `type`
+  - is used to define type built on another type (alias, but with functions)
+  - define structs
+  - define interfaces
+- no generics
+- there is a var args (...) syntax
 
 
 ### Go Types
+
 - bool:  true or false. zero-value **false**
 - string: text. zero=value **"" (empty string)**
 - int: `int8`, `uint8` (byte), `int16`, `uint16`, `int32` (rune), `uint32`, `int64`, `uint64`, `int`, `uint`, `uintptr`. zero-value **0**
@@ -1022,6 +1356,8 @@ Stuff worth remembering
 - array
 - slice: `[]<type>`
 - map: `[<key type>]<value type>`
+- structs: `type <struct name> struct`
+- interfaces `type <interface name> interface`
 
 **value types**: int, float, string, bool, structs.\
 **reference types**: slices, maps,channels,pointers, functions.  
@@ -1046,12 +1382,13 @@ rand | import "math/rand" | randomness | IntN, newSource, New
 debug |||
 encoding |||
 crypto |||
-io |||
+io |import "io"| IO primitives| Copy
 ioutil | import "io/util" | utility functions for IO | WriteFile,ReadFile
 strings |import "strings"|basic string operations | Join, Split
-os | import "os" |platform independent system calls | exit, Remove
+os | import "os" |platform independent system calls | exit, Remove, os.Args
 time | import "time" |functionality for measuring and displaying time | Now, 
 testing | import "testing" | tests package! | t.Error,  t.Errorf
+http | import "net/http" | networking stuff | Get,Post
 
 ### Format String
 
