@@ -12,14 +12,14 @@ udemy course Go: The Complete Developer's Guide (Golang).
 
 ## Contents
 
-1. Getting Started
-2. A Simple Start
-3. Deeper Into Go
-4. Organizing Data With Structs
-5. Maps
-6. Interfaces
-7. Channels and Go Routines
-8. Extras
+1. [Getting Started](#getting-started)
+2. [A Simple Start](#a-simple-start)
+3. [Deeper Into Go](#deeper-into-go)
+4. [Organizing Data With Structs](#organizing-data-with-structs)
+5. [Maps](#maps)
+6. [Interfaces](#interfaces)
+7. [Channels and Go Routines](#channels-and-go-routines)
+8. [Personal Takeaways](#other-takeaways)
 
 [course diagrams](https://github.com/StephenGrider/GoCasts/tree/master/diagrams)
 
@@ -1316,20 +1316,205 @@ func (logWriter) Write(bs []byte) (n int, err error){
 
 ## Channels and Go Routines
 
-<details>
+<!-- <details> -->
 <summary>
 
 </summary>
-</details>
 
-## Extras
+### Website Status Checker
 
-<details>
-<summary>
+a program that checks the status of some popular websites, we will put this code in "channels" folder. we already know most of this.
 
-</summary>
-</details>
+```go
+package main
+
+func main() {
+	links:= []string{
+		"http://google.com",
+		"http://facebook.com",
+		"http://stackoverflow.com",
+		"http://amazon.com",
+		"http://golang.org",
+	}
+
+	for _,link := range links{
+
+	}
+}
+
+```
+
+### Printing Site Status
+
+rather than put everything in the main function, let's create a different function to do this for
+```go
+func checkLink(link string){
+	_,err:=http.Get(link)
+	if err != nil{
+		fmt.Println(link, "might be down!")
+		return
+	}
+	fmt.Println(link, "is responding")
+}
+```
+
+this works, but not efficient, we are waiting for each request to finish before starting the next one.
+
+### Serial Link Checking
+
+could we skip this waiting time? why not start all request at the same time and print the responses in the order they return?
+
+### Go Routines
+
+goRoutines are one of the main features of go. the main program itself is a goRoutine. the http.Get function is a blocking call. so we want to fix this problem, this will be done by calling the function as a goRoutine.
+
+To do this, we simply add the keyword `go` before the function call. this will create a goRoutine. once the goRoutine reaches a blocking call, it will yield control so the loop can continue.
+
+there is more to know, and some edge cases.
+
+### Theory of Go Routines
+
+go has a Go Scheduler behind the scenes, when we have one cpu, the go scheduler monitors the go routines, and knows to yield cpu time according to io calls. go prefers to use one core, even if we have more.\
+**(note: this isn't true today with more modern Go)**\
+when we have multiple cpu cores, the scheduler tries to attach each goRoutine to a different cpu.
+
+> "Concurrency is not parallelism"\
+> Concurrency - we can have multiple threads executing code. if one thread blocks, another one is picker up and worked on.\
+> Parallelism - Multiple threads executed at the exact same time, requires  multiple CPUs.
+
+every program has a main goRoutine, the other routines are child routines, if the main routine ends, the rest of them also 'die'.
+
+### Channels
+
+now we need to use go routines, if we simply add the `go` keyword, then the function will end and we won't see any results!
+
+```go
+package main
+
+func main() {
+	links:= []string{
+		"http://google.com",
+		"http://facebook.com",
+		"http://stackoverflow.com",
+		"http://amazon.com",
+		"http://golang.org",
+	}
+
+	for _,link := range links{
+		go checkLink(link)
+	}
+	fmt.Println("finished with the loop!")
+}
+```
+
+the problem is that the main routine ends, and this cancels the other routines. channels are used for communication between routines. channels are just like any other variable, they define the type of messages sent, like a string, float, a custom struct or booleans.
+
+### Channel Implementation
+
+channels are types, each channel has a type.
+
+because channels are just like any other variable, if we want to use it in a function, we need to pass it to the function as an argument.
+
+here we have some new syntax, 
+```go
+channel <- 5 // send value into channel
+myNumber <-  channel // wait for value to be sent into the channel, and when it's done, assign the value 
+fmt.Println(<- channel) // wait for the value to be sent into the channel, and use it as a function argument
+```
+
+```go
+func main() {
+	links := []string{
+		"http://google.com",
+		"http://facebook.com",
+		"http://stackoverflow.com",
+		"http://amazon.com",
+		"http://golang.org",
+	}
+	c := make(chan string)
+	for _, link := range links {
+		go checkLink(link, c)
+	}
+	fmt.Println(<-c)
+}
+
+func checkLink(link string, c chan string) {
+	_, err := http.Get(link)
+	if err != nil {
+		fmt.Println(link, "might be down!")
+		c <- "might be down!"
+		return
+	}
+	fmt.Println(link, "is responding")
+	c <- "is responding!"
+}
+```
+
+this time we get only one communication. it more than zero, but not what we wanted!
+
+### Blocking Channels
+
+the code that waits for a response from the channel is blocking, but when it receives data, it can continue.
+
+if we put two statements that take data from the channel, we will see two sites.
+if we put more "read" statements than the number of "write" statements we have, then we will hang.
+
+### Receiving Messages
+
+receiving a message is blocking call. instead of writing the statements one after another, we can write a regular for loop
+
+```go
+for i := 0; i < len(links); i++ {
+	fmt.Println(<-c) //blocking code!
+}
+```
+
+this works!
+
+### Repeating Routines
+
+one last change, we want to repeatedly ping each site, once it completes, we want to check this again! we will use the channel to return the link that we checked! we want to continuously, forever, check the links, so we modify the for loop.
+
+```go
+func main() {
+	links := []string{
+		"http://google.com",
+		"http://facebook.com",
+		"http://stackoverflow.com",
+		"http://amazon.com",
+		"http://golang.org",
+	}
+	c := make(chan string)
+	for _, link := range links {
+		go checkLink(link, c)
+	}
+	fmt.Println("out of loop!")
+	for {
+		fmt.Println(<-c) //blocking code!
+	}
+	go checkLink(<-c,c)
+}
+
+func checkLink(link string, c chan string) {
+	_, err := http.Get(link)
+	if err != nil {
+		fmt.Println(link, "might be down!")
+		c <- link
+		return
+	}
+	fmt.Println(link, "is responding")
+	c <- link
+}
+```
+this works, but we are flooding the servers with requests, we should  wait between them.
+
+### Alternative Loop Syntax
+### Sleeping a Routine
+### Function Literals
+### Channels Gotcha!
    
+</details>
+
 ## Other TakeAways
 
 <details>
@@ -1344,6 +1529,9 @@ Stuff worth remembering
   - define interfaces
 - no generics
 - there is a var args (...) syntax
+- go routines
+  -  `go <func name>`
+  -  no `while` or `do{} while`, just `for` loops.
 
 
 ### Go Types
@@ -1357,7 +1545,8 @@ Stuff worth remembering
 - slice: `[]<type>`
 - map: `[<key type>]<value type>`
 - structs: `type <struct name> struct`
-- interfaces `type <interface name> interface`
+- interfaces: `type <interface name> interface`
+- channels: `make(chan <message type>`
 
 **value types**: int, float, string, bool, structs.\
 **reference types**: slices, maps,channels,pointers, functions.  
