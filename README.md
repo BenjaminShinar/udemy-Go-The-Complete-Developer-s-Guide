@@ -1316,10 +1316,11 @@ func (logWriter) Write(bs []byte) (n int, err error){
 
 ## Channels and Go Routines
 
-<!-- <details> -->
+<details>
 <summary>
-
+Communication between Go Routines using channels.
 </summary>
+
 
 ### Website Status Checker
 
@@ -1509,10 +1510,89 @@ func checkLink(link string, c chan string) {
 this works, but we are flooding the servers with requests, we should  wait between them.
 
 ### Alternative Loop Syntax
+
+we wrote earlier this loop
+```go
+for {
+	go checkLink(<-c,c)
+}
+```
+
+but lets change the style to make it more clear. we move the link to the loop declaration, we use a range with a channel. 
+
+```go
+for l:= range c{
+	go checkLink(l,c)
+}
+```
+
 ### Sleeping a Routine
+
+let's add a pause between each call. we look at the documentation as usual, and we find *Sleep* inside the time package `Sleep (d Duration)`. *time.Second* is a duration type that we can do some arithmetics on.
+
+But we need to decide where to pause the program. the sleep function operates on the **current goRoutine**.
+
+if we put it in the main routine, things won't be great, because it needs to respond to message from other sites
+```go
+	for l := range c {
+		time.Sleep( 5 * time.Second) // not here!
+		go checkLink(l, c)
+	}
+```
+
 ### Function Literals
+
+another option is to put the sleep in the checkLink function, but this will slow down the function 
+
+```go
+func checkLink(link string, c chan string) {
+	time.Sleep( 5 * time.Second) // not here!
+	_, err := http.Get(link)
+	if err != nil {
+		fmt.Println(link, "might be down!")
+		c <- link
+		return
+	}
+	fmt.Println(link, "is responding")
+	c <- link
+}
+```
+
+instead, we will put something called 'function literal', which is basically a lambda function.  we will also invoke it immediately. so the pause isn't part of the checkLink function, it's part of the block that defines the go routine.
+
+
+```go
+	for l := range c {
+		go func(){
+			time.Sleep(5 * time.Second)
+			checkLink(l,c)
+		}() //invoke
+	}
+```
+
+but now we get some squiggly lines in the IDE
+
 ### Channels Gotcha!
    
+we ge a warning that 
+> "loop variable l is captured by function literal"
+
+if we run the code, we get only one link called! this isn't what we wanted! so what's going on?
+
+l is part of the outer scope, and is used in the inner scope. this is bad, so we need to do a pass by value instead, and we provide it to the function literal as an argument.
+
+
+```go
+	for l := range c {
+		go func(li string) {
+			time.Sleep(5 * time.Second)
+			checkLink(li, c)
+		}(l) //invoke
+	}
+```
+
+
+
 </details>
 
 ## Other TakeAways
@@ -1531,7 +1611,11 @@ Stuff worth remembering
 - there is a var args (...) syntax
 - go routines
   -  `go <func name>`
+  -  `go func(){ /*body*/ }()` - function literal
   -  no `while` or `do{} while`, just `for` loops.
+-  lambdas are called *function literals*
+   -  function literals capture **by reference**, the values can be changed from either block.
+-  writing to a channel is a blocking action.
 
 
 ### Go Types
@@ -1575,7 +1659,7 @@ io |import "io"| IO primitives| Copy
 ioutil | import "io/util" | utility functions for IO | WriteFile,ReadFile
 strings |import "strings"|basic string operations | Join, Split
 os | import "os" |platform independent system calls | exit, Remove, os.Args
-time | import "time" |functionality for measuring and displaying time | Now, 
+time | import "time" |functionality for measuring and displaying time | Now, Sleep,
 testing | import "testing" | tests package! | t.Error,  t.Errorf
 http | import "net/http" | networking stuff | Get,Post
 
